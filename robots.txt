@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://louisalviss.github.io/canada-recall-check/sitemap.xml
