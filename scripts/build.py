@@ -1,7 +1,7 @@
 import json, re, html, shutil, os
 from pathlib import Path
-DATA=json.load(open('/root/projects/canada-recall-check/recalls.json',encoding='utf-8'))
-OUT=Path('/root/projects/canada-recall-check/site')
+DATA=json.load(open(os.environ.get('RECALL_DATA','/tmp/recalls.json'),encoding='utf-8'))
+OUT=Path('.')
 shutil.rmtree(OUT/"recall",ignore_errors=True); shutil.rmtree(OUT/"category",ignore_errors=True)
 BASE='https://louisalviss.github.io/canada-recall-check'
 def slug(s):
