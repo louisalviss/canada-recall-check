@@ -1,8 +1,8 @@
-import json, re, html, shutil
+import json, re, html, shutil, os
 from pathlib import Path
 DATA=json.load(open('/root/projects/canada-recall-check/recalls.json',encoding='utf-8'))
 OUT=Path('/root/projects/canada-recall-check/site')
-shutil.rmtree(OUT,ignore_errors=True); OUT.mkdir()
+shutil.rmtree(OUT/"recall",ignore_errors=True); shutil.rmtree(OUT/"category",ignore_errors=True)
 BASE='https://louisalviss.github.io/canada-recall-check'
 def slug(s):
     return (re.sub(r'[^a-z0-9]+','-',str(s).lower()).strip('-')[:90] or 'recall')
