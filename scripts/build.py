@@ -121,14 +121,39 @@ for name,patterns in topic_hubs.items():
 topic_cards=''.join(f'<div class="card"><a href="{BASE}/topic/{ts}/"><strong>{esc(name)}</strong></a><div class="muted">{total} records · {active_n} active · {esc(span)}</div></div>' for name,ts,total,active_n,span in topic_index)
 topic_body=f'<main><h1>Recall topic histories in Canada</h1><p>Small validation cohort of topic-level recall histories built from Government of Canada records.</p>{topic_cards}</main>'
 topic_url=f'{BASE}/topic/'; (OUT/'topic').mkdir(parents=True,exist_ok=True); (OUT/'topic'/'index.html').write_text(shell('Recall topic histories Canada','Browse selected multi-year Canadian recall topic histories.',topic_body,topic_url),encoding='utf-8'); pages.append(topic_url)
+topiclinks=' · '.join(f'<a href="topic/{ts}/">{esc(name)}</a>' for name,ts,_,_,_ in topic_index)
 
 latest=''.join(f'<div class="card"><a href="recall/{s}/"><strong>{esc(r.get("Title"))}</strong></a><div class="muted">{esc(r.get("Category"))} · {esc(r.get("Last updated"))}</div></div>' for s,r in entries[:40])
 catlinks=' · '.join(f'<a href="category/{slug(c)}/">{esc(c)}</a>' for c in sorted(cats)[:30])
-body=f'''<main><h1>Canada Recall Check</h1><p>Search and browse recent Government of Canada recalls and safety alerts. This experimental index contains {len(rows):,} active records.</p><p><a href="retailer/"><strong>Browse retailer recall histories →</strong></a> · <a href="topic/"><strong>Browse topic recall histories →</strong></a></p><p>{catlinks}</p><h2>Latest recalls</h2>{latest}</main>'''
+body=f'''<main><h1>Canada Recall Check</h1><p>Search and browse recent Government of Canada recalls and safety alerts. This experimental index contains {len(rows):,} active records.</p><p><a href="retailer/"><strong>Browse retailer recall histories →</strong></a> · <a href="topic/"><strong>Browse topic recall histories →</strong></a></p><p><strong>Validation cohort:</strong> {topiclinks}</p><p>{catlinks}</p><h2>Latest recalls</h2>{latest}</main>'''
 (OUT/'index.html').write_text(shell('Canada Recall Check — recent product, food, drug and vehicle recalls','Browse recent Government of Canada recalls and safety alerts by product and category.',body,BASE+'/'),encoding='utf-8')
 pages.insert(0,BASE+'/')
 (OUT/'robots.txt').write_text(f'User-agent: *\nAllow: /\nSitemap: {BASE}/sitemap.xml\n',encoding='utf-8')
 urls=''.join(f'<url><loc>{u}</loc></url>' for u in pages)
 (OUT/'sitemap.xml').write_text(f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>',encoding='utf-8')
-(OUT/'README.md').write_text('# Canada Recall Check\n\nStatic SEO experiment generated from Government of Canada open recall data.\n',encoding='utf-8')
+readme_topics='\n'.join(f'- {name}: {BASE}/topic/{ts}/' for name,ts,_,_,_ in topic_index)
+readme=f'''# Canada Recall Check
+
+Static SEO experiment generated from Government of Canada open recall data.
+
+## Live site
+
+- Site: {BASE}/
+- Sitemap: {BASE}/sitemap.xml
+- Retailer recall histories: {BASE}/retailer/
+- Topic recall histories: {BASE}/topic/
+
+Current topic validation cohort:
+
+{readme_topics}
+
+## Data source
+
+Government of Canada Recalls and Safety Alerts open data, with links back to the official notices for verification.
+
+## Validation status
+
+The site is intentionally being expanded in small cohorts. Mass programmatic scaling is paused until crawl/index/impression data shows that the aggregate-page formats can rank.
+'''
+(OUT/'README.md').write_text(readme,encoding='utf-8')
 print(f'built records={len(rows)} categories={len(cats)} urls={len(pages)}')
