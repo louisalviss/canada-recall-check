@@ -1,8 +1,9 @@
 import json, re, html, shutil, os
 from pathlib import Path
+from collections import Counter
 DATA=json.load(open(os.environ.get('RECALL_DATA','/tmp/recalls.json'),encoding='utf-8'))
 OUT=Path('.')
-shutil.rmtree(OUT/"recall",ignore_errors=True); shutil.rmtree(OUT/"category",ignore_errors=True)
+shutil.rmtree(OUT/"recall",ignore_errors=True); shutil.rmtree(OUT/"category",ignore_errors=True); shutil.rmtree(OUT/"retailer",ignore_errors=True)
 BASE='https://louisalviss.github.io/canada-recall-check'
 def slug(s):
     return (re.sub(r'[^a-z0-9]+','-',str(s).lower()).strip('-')[:90] or 'recall')
@@ -35,9 +36,53 @@ for c,items in cats.items():
     cards=''.join(f'<div class="card"><a href="{BASE}/recall/{s}/"><strong>{esc(r.get("Title"))}</strong></a><div class="muted">{esc(r.get("Last updated"))}</div></div>' for s,r in items[:100])
     body=f'<main><h1>{esc(c)} recalls in Canada</h1><p>{len(items)} recent active records in this test index.</p>{cards}</main>'
     url=f'{BASE}/category/{cs}/'; (p/'index.html').write_text(shell(f'{c} recalls Canada',f'Recent {c} recalls and safety alerts in Canada.',body,url),encoding='utf-8'); pages.append(url)
+# Small SEO pilot: historical retailer hubs. These aggregate the full official
+# dataset without expanding the individual recall-page footprint beyond the
+# existing 1,500-record test index.
+retailers={
+    'Amazon Canada': r'\bamazon(?:\.ca| canada)?\b',
+    'Canadian Tire': r'\bcanadian tire\b',
+    'Costco Canada': r'\bcostco\b',
+    'Dollarama': r'\bdollarama\b',
+    'IKEA Canada': r'\bikea\b',
+    'Walmart Canada': r'\bwalmart(?:\.ca| canada)?\b',
+}
+retailer_index=[]
+for name,pattern in retailers.items():
+    rx=re.compile(pattern,re.I)
+    matches=[]
+    for r in DATA:
+        searchable=' '.join(clean(r.get(k)) for k in ('Title','Product','Issue','What you should do'))
+        if rx.search(searchable): matches.append(r)
+    matches.sort(key=lambda x:x.get('Last updated','') or '',reverse=True)
+    if not matches: continue
+    active_n=sum(str(r.get('Archived','0'))!='1' for r in matches)
+    archived_n=len(matches)-active_n
+    cat_counts=Counter(clean(r.get('Category')) or 'Other' for r in matches)
+    top_cats=', '.join(f'{esc(c)} ({n})' for c,n in cat_counts.most_common(5))
+    cards=''.join(
+        f'<div class="card"><a rel="nofollow" href="{esc(r.get("URL"))}"><strong>{esc(r.get("Title"))}</strong></a>'
+        f'<div class="muted">{esc(r.get("Last updated"))} · {esc(clean(r.get("Category")) or "Other")} · '
+        f'{"Archived" if str(r.get("Archived","0"))=="1" else "Active"}</div></div>'
+        for r in matches[:100]
+    )
+    body=(f'<main><h1>{esc(name)} recalls in Canada</h1>'
+          f'<p>Historical and current Government of Canada recall records mentioning {esc(name)}.</p>'
+          f'<div class="card"><strong>{len(matches)} records</strong> · {active_n} active · {archived_n} archived<br>'
+          f'<span class="muted">Common categories: {top_cats}</span></div>'
+          f'<p class="muted">This is an independent aggregation. Always verify status, affected products and corrective actions on the official notice.</p>'
+          f'{cards}</main>')
+    rs=slug(name); p=OUT/'retailer'/rs; p.mkdir(parents=True,exist_ok=True)
+    url=f'{BASE}/retailer/{rs}/'
+    (p/'index.html').write_text(shell(f'{name} recalls Canada — product recall history',f'Browse current and historical Government of Canada recall records mentioning {name}.',body,url),encoding='utf-8')
+    pages.append(url); retailer_index.append((name,rs,len(matches),active_n))
+retailer_cards=''.join(f'<div class="card"><a href="{BASE}/retailer/{rs}/"><strong>{esc(name)}</strong></a><div class="muted">{total} records · {active_n} active</div></div>' for name,rs,total,active_n in retailer_index)
+retailer_body=f'<main><h1>Retailer recalls in Canada</h1><p>Browse selected retailer recall histories aggregated from Government of Canada recall records.</p>{retailer_cards}</main>'
+retailer_url=f'{BASE}/retailer/'; (OUT/'retailer').mkdir(parents=True,exist_ok=True); (OUT/'retailer'/'index.html').write_text(shell('Retailer recalls Canada — recall history by store','Browse selected Canadian retailer recall histories from Government of Canada data.',retailer_body,retailer_url),encoding='utf-8'); pages.append(retailer_url)
+
 latest=''.join(f'<div class="card"><a href="recall/{s}/"><strong>{esc(r.get("Title"))}</strong></a><div class="muted">{esc(r.get("Category"))} · {esc(r.get("Last updated"))}</div></div>' for s,r in entries[:40])
 catlinks=' · '.join(f'<a href="category/{slug(c)}/">{esc(c)}</a>' for c in sorted(cats)[:30])
-body=f'''<main><h1>Canada Recall Check</h1><p>Search and browse recent Government of Canada recalls and safety alerts. This experimental index contains {len(rows):,} active records.</p><p>{catlinks}</p><h2>Latest recalls</h2>{latest}</main>'''
+body=f'''<main><h1>Canada Recall Check</h1><p>Search and browse recent Government of Canada recalls and safety alerts. This experimental index contains {len(rows):,} active records.</p><p><a href="retailer/"><strong>Browse retailer recall histories →</strong></a></p><p>{catlinks}</p><h2>Latest recalls</h2>{latest}</main>'''
 (OUT/'index.html').write_text(shell('Canada Recall Check — recent product, food, drug and vehicle recalls','Browse recent Government of Canada recalls and safety alerts by product and category.',body,BASE+'/'),encoding='utf-8')
 pages.insert(0,BASE+'/')
 (OUT/'robots.txt').write_text(f'User-agent: *\nAllow: /\nSitemap: {BASE}/sitemap.xml\n',encoding='utf-8')
